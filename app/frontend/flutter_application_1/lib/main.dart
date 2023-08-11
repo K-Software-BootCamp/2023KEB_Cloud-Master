@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-// import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
-  // dotenv.load(fileName: "app/frontend/flutter_application_1/assets/config/.env");
+Future<void> main() async {
+  await dotenv.load(fileName: "assets/config/.env");
   runApp(ReviewApp());
 }
 
@@ -45,16 +46,14 @@ class LoginForm extends StatefulWidget {
   _LoginFormState createState() => _LoginFormState();
 }
 
-const apiUrl =
-    "https://gkeqjfyqub.execute-api.ap-northeast-2.amazonaws.com/dev";
-const apiKey = "MekCH2VUuz7PmvsDURiXE5ar5wGJHz9a3v1XdgSH";
+final apiUrl = dotenv.env['API_URL'];
+final apiKey = dotenv.env['API_KEY'];
+final apilogin = dotenv.env['API_LOGIN'];
+final apipost = dotenv.env['API_POST'];
+final apicomment = dotenv.env['API_COMMENT'];
 
 class _LoginFormState extends State<LoginForm> {
-  //final String apiUrl = dotenv.env['API_URL']!;
-  //final String apiKey = dotenv.env['API_KEY']!;
-  //final String login = dotenv.env['API_LOGIN']!;
-  static const login = "ReviewWeb-apigw-login-resource";
-  static const String requestUrl = '$apiUrl/$login';
+  final String loginRequestUrl = '$apiUrl/$apilogin';
 
   Future<bool> _isCreateUserSuccess(entered_id, entered_pw) async {
     final Map<String, String> data = {
@@ -64,9 +63,9 @@ class _LoginFormState extends State<LoginForm> {
     };
 
     final response = await http.post(
-      Uri.parse(requestUrl),
+      Uri.parse(loginRequestUrl),
       headers: {
-        'x-api-key': apiKey,
+        'x-api-key': apiKey!,
       },
       body: json.encode(data),
     );
@@ -202,9 +201,9 @@ class _LoginFormState extends State<LoginForm> {
     };
 
     final response = await http.post(
-      Uri.parse(requestUrl),
+      Uri.parse(loginRequestUrl),
       headers: {
-        'x-api-key': apiKey,
+        'x-api-key': apiKey!,
       },
       body: json.encode(data),
     );
@@ -768,8 +767,14 @@ class _MainPageState extends State<MainPage> {
                                       width: 150,
                                       height: 150,
                                       child: Card(
-                                        color: Colors.grey,
-                                      ),
+                                          child: posts[index].imagefiles.isEmpty
+                                              ? Container(
+                                                  color: Colors.grey,
+                                                )
+                                              : Image.network(
+                                                  posts[index].imagefiles[0],
+                                                  fit: BoxFit.cover,
+                                                )),
                                     ),
                                     SizedBox(width: 15),
                                     Padding(
@@ -941,8 +946,15 @@ class _ShowDetailPageState extends State<ShowDetailPage> {
                     height: 300,
                     width: 400,
                     child: Card(
-                        // 사진 불러오기
-                        ),
+                      child: post.imagefiles.isEmpty
+                          ? Container(
+                              color: Colors.grey,
+                            )
+                          : Image.network(
+                              post.imagefiles[0],
+                              fit: BoxFit.cover,
+                            ),
+                    ),
                   ),
                 ],
               ),
@@ -1279,6 +1291,7 @@ class _PostEditState extends State<ShowEditPage> {
     String title = _titleController.text;
     String? category = _selectedCategory;
     String content = _contentController.text;
+    List<dynamic> imagefiles = widget.post.imagefiles;
 
     List<Widget> _boxContents = [
       IconButton(
@@ -1358,8 +1371,14 @@ class _PostEditState extends State<ShowEditPage> {
                     },
                   );
                 } else {
-                  updatePost(postid, _titleController.text, _selectedCategory!,
-                      _contentController.text, _rating);
+                  updatePost(
+                      postid,
+                      _titleController.text,
+                      _selectedCategory!,
+                      _contentController.text,
+                      _rating,
+                      imagefiles,
+                      _selectedImage);
                   getPost(postid).then((updatedPost) {
                     Navigator.pushReplacement(
                       context,
@@ -1490,6 +1509,7 @@ class Post {
   final int score;
   final String category;
   final DateTime createdTime;
+  final List<dynamic> imagefiles;
 
   Post({
     required this.postid,
@@ -1499,18 +1519,17 @@ class Post {
     required this.writerid,
     required this.score,
     required this.createdTime,
+    required this.imagefiles,
   });
 }
 
+final postRequestUrl = '$apiUrl/$apipost';
+// 게시글 쓰는 함수
 Future<void> addPost(String title, String category, String content,
     String writerid, int score, List<XFile> images) async {
-  const post = "ReviewWeb-apigw-post-resource";
-  const String requestUrl = '$apiUrl/$post';
+  final request = http.MultipartRequest('POST', Uri.parse(postRequestUrl));
+  request.headers['x-api-key'] = apiKey!;
 
-  final request = http.MultipartRequest('POST', Uri.parse(requestUrl));
-  request.headers['x-api-key'] = apiKey;
-
-  request.fields['method'] = 'create_post';
   request.fields['title'] = title;
   request.fields['category'] = category;
   request.fields['content'] = content;
@@ -1519,44 +1538,27 @@ Future<void> addPost(String title, String category, String content,
 
   for (int i = 0; i < images.length; i++) {
     XFile imageFile = images[i];
-    http.MultipartFile multipartFile =
-        await http.MultipartFile.fromPath('image$i', imageFile.path);
+    http.MultipartFile multipartFile = await http.MultipartFile.fromPath(
+      'image$i',
+      imageFile.path,
+      contentType: MediaType('image', 'jpeg'),
+    );
+    request.files.add(multipartFile);
   }
 
-/*
-  final Map<String, dynamic> data = {
-    'method': 'create_post',
-    'title': title,
-    'category': category,
-    'content': content,
-    'writerid': writerid,
-    'score': score,
-  };
-
-  await http.post(
-    Uri.parse(requestUrl),
-    headers: {
-      'x-api-key': apiKey,
-    },
-    body: json.encode(data),
-  );
-  */
+  final response = await request.send();
+  print(response.statusCode);
+  final responseString = await response.stream.bytesToString();
+  print(responseString);
 }
 
+// 게시글 읽는 함수
 Future<List<Post>> readPost() async {
-  const post = "ReviewWeb-apigw-post-resource";
-  const String requestUrl = '$apiUrl/$post';
-
-  final Map<String, String> data = {
-    'method': 'read_post',
-  };
-
-  final response = await http.post(
-    Uri.parse(requestUrl),
+  final response = await http.get(
+    Uri.parse(postRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
-    body: json.encode(data),
   );
   List<Post> posts = [];
 
@@ -1572,9 +1574,11 @@ Future<List<Post>> readPost() async {
               writerid: item['writerid'],
               score: item['score'].toInt(),
               createdTime: DateTime.parse(item['createdTime']),
+              imagefiles: item['image_files'],
             ))
         .toList();
   }
+  print(response.statusCode);
   return posts;
 }
 
@@ -1583,43 +1587,54 @@ Future<Post> getPost(String postid) async {
   return postlist.firstWhere((post) => post.postid == postid);
 }
 
-Future<void> updatePost(String postid, String title, String category,
-    String content, int score) async {
-  const post = "ReviewWeb-apigw-post-resource";
-  const String requestUrl = '$apiUrl/$post';
+Future<void> updatePost(
+    String postid,
+    String title,
+    String category,
+    String content,
+    int score,
+    List<dynamic> imagefiles,
+    List<XFile> images) async {
+  final request = http.MultipartRequest('PATCH', Uri.parse(postRequestUrl));
+  request.headers['x-api-key'] = apiKey!;
 
-  final Map<String, dynamic> data = {
-    'method': 'update_post',
-    'post_ID': postid,
-    'title': title,
-    'category': category,
-    'content': content,
-    'score': score,
-  };
-  await http.post(
-    Uri.parse(requestUrl),
-    headers: {
-      'x-api-key': apiKey,
-    },
-    body: json.encode(data),
-  );
+  request.fields['post_ID'] = postid;
+  request.fields['title'] = title;
+  request.fields['category'] = category;
+  request.fields['content'] = content;
+  request.fields['score'] = score.toString();
+  String imageFilesAsString = imagefiles.join(',');
+  request.fields['imagefiles'] = imageFilesAsString;
+
+  for (int i = 0; i < images.length; i++) {
+    XFile imageFile = images[i];
+    http.MultipartFile multipartFile = await http.MultipartFile.fromPath(
+      'image$i',
+      imageFile.path,
+      contentType: MediaType('image', 'jpeg'),
+    );
+    request.files.add(multipartFile);
+  }
+  final response = await request.send();
+  print(response.statusCode);
+  final responseString = await response.stream.bytesToString();
+  print(responseString);
 }
 
 Future<void> deletePost(postid) async {
-  const post = "ReviewWeb-apigw-post-resource";
-  const String requestUrl = '$apiUrl/$post';
-
   final Map<String, dynamic> data = {
-    'method': 'delete_post',
     'post_ID': postid,
   };
-  await http.post(
-    Uri.parse(requestUrl),
+  final response = await http.delete(
+    Uri.parse(postRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
+
+  print(response.statusCode);
+  print(response.body);
 }
 
 // 댓글 기능
@@ -1640,9 +1655,6 @@ class Comment {
 }
 
 Future<void> addComment(String postid, String content, String writerid) async {
-  const comment = "ReviewWeb-apigw-comment-resource";
-  const String requestUrl = '$apiUrl/$comment';
-
   final Map<String, String> data = {
     'method': 'create_comment',
     'postid': postid,
@@ -1651,27 +1663,26 @@ Future<void> addComment(String postid, String content, String writerid) async {
   };
 
   final response = await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(postRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
   print(response.statusCode);
 }
 
-Future<List<Comment>> readComment() async {
-  const comment = "ReviewWeb-apigw-comment-resource";
-  const String requestUrl = '$apiUrl/$comment';
+final commentRequestUrl = '$apiUrl/$apicomment';
 
+Future<List<Comment>> readComment() async {
   final Map<String, String> data = {
     'method': 'read_comment',
   };
 
   final response = await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(commentRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
@@ -1698,18 +1709,15 @@ Future<List<Comment>> readComment() async {
 
 Future<void> updateComment(
     String postid, String content, String commentid) async {
-  const comment = "ReviewWeb-apigw-comment-resource";
-  const String requestUrl = '$apiUrl/$comment';
-
   final Map<String, String> data = {
     'method': 'update_comment',
     'content': content,
     'comment_ID': commentid,
   };
   final response = await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(commentRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
@@ -1717,17 +1725,14 @@ Future<void> updateComment(
 }
 
 Future<void> deleteComment(commentid) async {
-  const comment = "ReviewWeb-apigw-comment-resource";
-  const String requestUrl = '$apiUrl/$comment';
-
   final Map<String, String> data = {
     'method': 'delete_comment',
     'comment_ID': commentid,
   };
   final response = await http.post(
-    Uri.parse(requestUrl),
+    Uri.parse(commentRequestUrl),
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': apiKey!,
     },
     body: json.encode(data),
   );
