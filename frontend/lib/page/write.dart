@@ -68,30 +68,43 @@ class _WriteState extends State<Write> {
     print(_selectedFiles);
   }
 
-  Future<void> _uploadImagesToServer({
+    Future _uploadImagesToServer({
     required List<XFile> selectedFiles,
   }) async {
     final uri = Uri.parse(
         'https://hu7ixbp145.execute-api.ap-northeast-2.amazonaws.com/SendImage-test/images');
     final request = http.MultipartRequest('POST', uri);
 
-    // API 키 추가
-    request.headers['x-api-key'] = 'EgHMxqZNlk2C89mFBqv4d6OgrECiOmuD3wSPiMSl';
+    // Content-Type 헤더 설정
+    request.headers['Content-Type'] = 'multipart/form-data';
 
-    // JSON 데이터 추가
-    Map<String, dynamic> jsonData = {
-      // 추가할 JSON 데이터 내용
-      "Method": "sendImagesToS3",
-      "userId": "rkskek12",
+    // JSON 데이터를 Map으로 구성하여 추가
+    Map<String, String> jsonMap = {
+      'userId': 'rkskek12',
     };
-    request.fields['data'] = jsonEncode(jsonData); // JSON 데이터를 'data' 키로 전송
+    String jsonData = jsonEncode(jsonMap);
+    request.fields['jsonData'] = jsonData;
 
-    print("Sent JSON Data:");
-    print(jsonData); // 보내는 JSON 데이터 출력
+    print("Sent JSON Data: $jsonData");
 
     for (var selectedFile in selectedFiles) {
+      // 확장자 추출
+      String extension = selectedFile.path.split('.').last;
+
+      // 이미지 데이터를 Base64로 인코딩
+      List<int> imageBytes = await selectedFile.readAsBytes();
+      String base64Image = base64Encode(imageBytes);
+
       request.files.add(
-        await http.MultipartFile.fromPath('filename', selectedFile.path),
+        http.MultipartFile(
+          'filename', // form field 이름
+          http.ByteStream.fromBytes(
+              utf8.encode(base64Image)), // 이미지 데이터를 바이트 스트림으로 전환
+          utf8.encode(base64Image).length, // Base64로 인코딩된 데이터의 바이트 길이
+          filename:
+              'image_${selectedFiles.indexOf(selectedFile) + 1}.$extension', // 확장자 포함한 파일명
+          contentType: MediaType('image', extension), // 컨텐츠 타입 설정
+        ),
       );
     }
 
@@ -101,21 +114,18 @@ class _WriteState extends State<Write> {
     }
 
     try {
-      final response = await request.send();
+      http.StreamedResponse response = await request.send();
       if (response.statusCode == 200) {
-        print("Success");
-        print(response.statusCode);
-
         final responseBody = await response.stream.bytesToString();
-        print("Response Data:");
-        print(responseBody); // Lambda 함수의 응답 데이터 출력
+        final responseJson = jsonDecode(responseBody);
+        print(responseJson);
+        List<String> imageUrls =
+            List<String>.from(jsonDecode(responseJson['body']));
+        print(imageUrls);
+        return imageUrls; // 이미지 URL 목록
       } else {
-        print("Fail");
-        final responseBody = await response.stream.bytesToString();
-        print("Response Data:");
-        print(responseBody); // Lambda 함수의 응답 데이터 출력
-        print(response.statusCode);
-        // throw Exception('Failed to send images');
+        print(request.headers);
+        print(response.reasonPhrase);
       }
     } catch (e) {
       print(e);
