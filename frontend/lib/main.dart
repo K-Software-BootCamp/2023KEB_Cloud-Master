@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:test_project/page/write.dart';
+import 'package:test_project/page/login.dart';
 
 void main() async {
   runApp(const MyApp());
@@ -11,12 +11,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: "STS",
+      title: "reviewApp",
       theme: ThemeData(
         //primaryColor: Colors.white,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const Write(),
+      home: const LogIn(),
     );
   }
 }

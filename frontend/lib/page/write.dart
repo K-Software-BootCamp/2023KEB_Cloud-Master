@@ -1,9 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
+import 'package:test_project/repository/contents_repository.dart';
+
+import 'control.dart';
 // import 'package:test_project/page/control.dart';
 // import 'package:test_project/repository/contents_repository.dart';
 
@@ -39,16 +44,18 @@ class _WriteState extends State<Write> {
   // 카테고리 선택
   final Map<String, dynamic> categoryOptionsTypeToString = {
     "default": "카테고리",
-    "electronics": "디지털/전자",
-    "tools": "공구",
+    "entertainment": "게임/오락",
+    "electronic": "전자기기",
     "clothes": "의류",
-    "others": "기타"
+    "health": "운동/건강",
+    "food": "음식",
   };
 
   final List<XFile> _selectedFiles = [];
   // 사용자의 다수의 image를 받기위한 생성자
   final ImagePicker _picker = ImagePicker();
-  Future<void> _selectImages() async {
+
+  void _selectImages() async {
     try {
       final List<XFile> selectedImages = await _picker.pickMultiImage(
         imageQuality: 100,
@@ -68,7 +75,7 @@ class _WriteState extends State<Write> {
     print(_selectedFiles);
   }
 
-    Future _uploadImagesToServer({
+  Future _uploadImagesToServer({
     required List<XFile> selectedFiles,
   }) async {
     final uri = Uri.parse(
@@ -133,92 +140,27 @@ class _WriteState extends State<Write> {
     }
   }
 
-//   Future<void> uploadImagesToServer({
-//   required List<XFile> selectedFiles,
-//   required String userId,
-//   required String imageDescription,
-// }) async {
-//   final uri = Uri.parse('https://651n535yzg.execute-api.ap-northeast-2.amazonaws.com/post');
-
-//   final request = http.MultipartRequest('POST', uri);
-
-//   // JSON 데이터 추가
-//   final jsonBody = jsonEncode({
-//     "Method": "sendImagesToS3",
-//     "userId": userId,
-//     "imageDescription": imageDescription,
-//   });
-//   request.fields['jsonData'] = jsonBody;
-
-//   // 이미지 파일 추가
-//   for (var selectedFile in selectedFiles) {
-//     final file = await http.MultipartFile.fromPath('imageFiles', selectedFile.path);
-//     request.files.add(file);
-//   }
-
-//   final response = await request.send();
-//   if (response.statusCode == 200) {
-//     // Lambda 함수에서 올바른 응답을 받은 경우
-//     final responseData = await response.stream.bytesToString();
-//     print('Response Data: $responseData');
-//   } else {
-//     // Lambda 함수에서 오류 응답을 받은 경우
-//     print('Error: ${response.statusCode}, ${await response.stream.bytesToString()}');
-//   }
-// }
-
-  // Future<void> _updateImageData() async {
-  //   imageJsonData = await _getImageIdData();
-  //   imageData = _convertImageJsonData(imageJsonData);
-  // }
-
-  // Future<List<dynamic>> _getImageIdData() async {
-  //   var url = Uri.parse(
-  //       'https://ubuntu.i4624.tk/image/sql/recent/${_selectedFiles.length}');
-  //   var response = await http.get(url);
-  //   if (response.statusCode == 200) {
-  //     final List<dynamic> responseData =
-  //         jsonDecode(utf8.decode(response.bodyBytes));
-  //     imageJsonData = responseData;
-  //     return imageJsonData;
-  //   } else {
-  //     throw Exception('Failed to get image data');
-  //   }
-  // }
-
-  // List<Map<String, dynamic>> _convertImageJsonData(
-  //     List<dynamic> imageJsonData) {
-  //   return imageJsonData
-  //       .map<Map<String, int>>((data) => {
-  //             'imageUid': data[0],
-  //           })
-  //       .toList();
-  // }
-
   // Send Data To Server
   Future _sendDataToServer({
-    // required String userId,
     required String title,
-    required String contents, // 카테고리
-    required String productCategory,
-    required String category, //거래방식
+    required String contents,
+    required String category,
     required int rate,
   }) async {
-    await _uploadImagesToServer(selectedFiles: _selectedFiles);
-    final uri = Uri.parse('https://ubuntu.i4624.tk/api/v1/post');
+    List imageList = await _uploadImagesToServer(selectedFiles: _selectedFiles);
+    final uri = Uri.parse(
+        'https://hu7ixbp145.execute-api.ap-northeast-2.amazonaws.com/SendImage-test/boards/crud');
     final headers = {
       'Content-Type': 'application/json',
     };
     final body = jsonEncode({
-      'title': title,
-      'content': contents,
+      'Method': 'create',
+      'boardTitle': title,
+      'boardContent': contents,
       'rate': rate,
-      // 'writer': json.encode(user.toJson()),
-      'category': category,
-      // 'imageIds':
-      //     imageData.map<int>((item) => item['imageUid'] as int).toList(),
+      'userId': UserInfo.userId,
       'boardCategory': category,
-      'itemCategory': productCategory,
+      'imageList': imageList,
     });
     final response = await http
         .post(
@@ -227,13 +169,48 @@ class _WriteState extends State<Write> {
           body: body,
         )
         .timeout(const Duration(seconds: 5));
+
     if (response.statusCode == 200) {
-      //print(response.statusCode);
+      final responseBody = jsonDecode(response.body);
+      print(response.statusCode);
+      print(response.body);
+      return true;
     } else {
-      // print(response.statusCode);
-      // print(response.reasonPhrase);
-      throw Exception('Failed to send total data');
+      print(response.statusCode);
+      print(response.reasonPhrase);
+      return false;
+      // throw Exception('Failed to send total data');
     }
+  }
+
+  void _fetchData(BuildContext context) async {
+    // Show the loading dialog
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (_) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                CircularProgressIndicator(),
+                SizedBox(height: 15),
+                Text('Loading...'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // Simulate asynchronous delay
+    await Future.delayed(const Duration(seconds: 3));
+
+    // Close the loading dialog
+    Navigator.of(context).pop();
   }
 
   // Appbar Widget
@@ -244,7 +221,10 @@ class _WriteState extends State<Write> {
         color: Colors.black,
         padding: EdgeInsets.zero,
         onPressed: () {
-          Navigator.pop(context);
+          Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const Control()),
+              (route) => false);
         },
         constraints: const BoxConstraints(),
         splashRadius: 24,
@@ -292,282 +272,269 @@ class _WriteState extends State<Write> {
                         : Colors.black),
               ),
               onPressed: () async {
-                _uploadImagesToServer(selectedFiles: _selectedFiles);
-                //거래방식 정보가 비어있을 때
-                // if (categoryCurrentLocation == "default") {
-                //   showDialog(
-                //     context: context,
-                //     barrierDismissible: false,
-                //     builder: (BuildContext context) {
-                //       return AlertDialog(
-                //         contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 5),
-                //         shape: RoundedRectangleBorder(
-                //             borderRadius: BorderRadius.circular(10.0)),
-                //         content: Column(
-                //           mainAxisSize: MainAxisSize.min,
-                //           crossAxisAlignment: CrossAxisAlignment.center,
-                //           children: const [
-                //             Text(
-                //               "거래방식을 입력해주세요",
-                //             ),
-                //           ],
-                //         ),
-                //         actions: <Widget>[
-                //           Center(
-                //             child: SizedBox(
-                //               width: 250,
-                //               child: ElevatedButton(
-                //                 style: ButtonStyle(
-                //                   backgroundColor:
-                //                       MaterialStateColor.resolveWith(
-                //                     (states) {
-                //                       if (states
-                //                           .contains(MaterialState.disabled)) {
-                //                         return Colors.grey;
-                //                       } else {
-                //                         return const Color.fromARGB(
-                //                             255, 132, 206, 243);
-                //                       }
-                //                     },
-                //                   ),
-                //                 ),
-                //                 child: const Text("확인"),
-                //                 onPressed: () {
-                //                   Navigator.pop(context);
-                //                 },
-                //               ),
-                //             ),
-                //           ),
-                //         ],
-                //       );
-                //     },
-                //   );
-                // }
-                // // 카테고리 정보가 비어있을 때
-                // else if (categoryCurrentLocation == "default") {
-                //   showDialog(
-                //     context: context,
-                //     barrierDismissible: false,
-                //     builder: (BuildContext context) {
-                //       return AlertDialog(
-                //         contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 5),
-                //         shape: RoundedRectangleBorder(
-                //             borderRadius: BorderRadius.circular(10.0)),
-                //         content: Column(
-                //           mainAxisSize: MainAxisSize.min,
-                //           crossAxisAlignment: CrossAxisAlignment.center,
-                //           children: const [
-                //             Text(
-                //               "카테고리를 입력해주세요",
-                //             ),
-                //           ],
-                //         ),
-                //         actions: <Widget>[
-                //           Center(
-                //             child: SizedBox(
-                //               width: 250,
-                //               child: ElevatedButton(
-                //                 style: ButtonStyle(
-                //                   backgroundColor:
-                //                       MaterialStateColor.resolveWith(
-                //                     (states) {
-                //                       if (states
-                //                           .contains(MaterialState.disabled)) {
-                //                         return Colors.grey;
-                //                       } else {
-                //                         return const Color.fromARGB(
-                //                             255, 132, 206, 243);
-                //                       }
-                //                     },
-                //                   ),
-                //                 ),
-                //                 child: const Text(
-                //                   "확인",
-                //                   style: TextStyle(
-                //                     color: Colors.black,
-                //                   ),
-                //                 ),
-                //                 onPressed: () {
-                //                   Navigator.pop(context);
-                //                 },
-                //               ),
-                //             ),
-                //           ),
-                //         ],
-                //       );
-                //     },
-                //   );
-                // }
-                // // 제목 정보가 비어있을 때
-                // else if (_titleController.text.isEmpty) {
-                //   showDialog(
-                //     context: context,
-                //     barrierDismissible: false,
-                //     builder: (BuildContext context) {
-                //       return AlertDialog(
-                //         contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 5),
-                //         shape: RoundedRectangleBorder(
-                //             borderRadius: BorderRadius.circular(10.0)),
-                //         content: Column(
-                //           mainAxisSize: MainAxisSize.min,
-                //           crossAxisAlignment: CrossAxisAlignment.center,
-                //           children: const [
-                //             Text(
-                //               "제목을 입력해주세요",
-                //             ),
-                //           ],
-                //         ),
-                //         actions: <Widget>[
-                //           SizedBox(
-                //             width: 250,
-                //             child: ElevatedButton(
-                //               style: ButtonStyle(
-                //                 backgroundColor: MaterialStateColor.resolveWith(
-                //                   (states) {
-                //                     if (states
-                //                         .contains(MaterialState.disabled)) {
-                //                       return Colors.grey;
-                //                     } else {
-                //                       return Colors.blue;
-                //                     }
-                //                   },
-                //                 ),
-                //               ),
-                //               child: const Text("확인"),
-                //               onPressed: () {
-                //                 Navigator.pop(context);
-                //               },
-                //             ),
-                //           ),
-                //         ],
-                //       );
-                //     },
-                //   );
-                // }
-                // // 가격 정보가 비어있을 때
-                // else if (_rateController.text.isEmpty) {
-                //   showDialog(
-                //     context: context,
-                //     barrierDismissible: false,
-                //     builder: (BuildContext context) {
-                //       return AlertDialog(
-                //         contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 5),
-                //         shape: RoundedRectangleBorder(
-                //             borderRadius: BorderRadius.circular(10.0)),
-                //         content: Column(
-                //           mainAxisSize: MainAxisSize.min,
-                //           crossAxisAlignment: CrossAxisAlignment.center,
-                //           children: const [
-                //             Text(
-                //               "평점을 입력해주세요",
-                //             ),
-                //           ],
-                //         ),
-                //         actions: <Widget>[
-                //           Center(
-                //             child: SizedBox(
-                //               width: 250,
-                //               child: ElevatedButton(
-                //                 child: const Text("확인"),
-                //                 onPressed: () {
-                //                   Navigator.pop(context);
-                //                 },
-                //               ),
-                //             ),
-                //           ),
-                //         ],
-                //       );
-                //     },
-                //   );
-                // }
-                // // 내용 정보가 비어있을 때
-                // else if (_contentsController.text.isEmpty) {
-                //   showDialog(
-                //     context: context,
-                //     barrierDismissible: false,
-                //     builder: (BuildContext context) {
-                //       return AlertDialog(
-                //         contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 5),
-                //         shape: RoundedRectangleBorder(
-                //             borderRadius: BorderRadius.circular(10.0)),
-                //         content: Column(
-                //           mainAxisSize: MainAxisSize.min,
-                //           crossAxisAlignment: CrossAxisAlignment.center,
-                //           children: const [
-                //             Text(
-                //               "내용을 입력해주세요",
-                //             ),
-                //           ],
-                //         ),
-                //         actions: <Widget>[
-                //           Center(
-                //             child: SizedBox(
-                //               width: 250,
-                //               child: ElevatedButton(
-                //                 child: const Text("확인"),
-                //                 onPressed: () {
-                //                   Navigator.pop(context);
-                //                 },
-                //               ),
-                //             ),
-                //           ),
-                //         ],
-                //       );
-                //     },
-                //   );
-                // } else if (_selectedFiles.isEmpty) {
-                //   showDialog(
-                //     context: context,
-                //     barrierDismissible: false,
-                //     builder: (BuildContext context) {
-                //       return AlertDialog(
-                //         contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 5),
-                //         shape: RoundedRectangleBorder(
-                //             borderRadius: BorderRadius.circular(10.0)),
-                //         content: Column(
-                //           mainAxisSize: MainAxisSize.min,
-                //           crossAxisAlignment: CrossAxisAlignment.center,
-                //           children: const [
-                //             Text(
-                //               "사진을 첨부해주세요",
-                //             ),
-                //           ],
-                //         ),
-                //         actions: <Widget>[
-                //           Center(
-                //             child: SizedBox(
-                //               width: 250,
-                //               child: ElevatedButton(
-                //                 child: const Text("확인"),
-                //                 onPressed: () {
-                //                   Navigator.pop(context);
-                //                 },
-                //               ),
-                //             ),
-                //           ),
-                //         ],
-                //       );
-                //     },
-                //   );
-                // }
-                // // 모든 정보가 입력되었을 때
-                // else {
-                //   _sendDataToServer(
-                //       // user: UserInfo(),
-                //       // userId: UserInfo.userId,
-                //       title: _titleController.text,
-                //       contents: _contentsController.text,
-                //       productCategory: categoryCurrentLocation,
-                //       category: categoryCurrentLocation,
-                //       rate:
-                //           int.parse(_rateController.text.replaceAll(',', '')));
-                //   //print("데이터 전송");
-                //   Navigator.pop(context);
-                //   // Navigator.push(
-                //   //   context,
-                //   //   MaterialPageRoute(builder: (context) => const Control()),
-                //   // );
-                // }
+                //카테고리 정보가 비어있을 때
+                if (categoryCurrentLocation == "default") {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        contentPadding: const EdgeInsets.fromLTRB(5, 20, 5, 5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0)),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Text(
+                              "카테고리를 입력해주세요",
+                            ),
+                          ],
+                        ),
+                        actions: <Widget>[
+                          Center(
+                            child: SizedBox(
+                              width: 250,
+                              child: ElevatedButton(
+                                style: ButtonStyle(
+                                  backgroundColor:
+                                      MaterialStateColor.resolveWith(
+                                    (states) {
+                                      if (states
+                                          .contains(MaterialState.disabled)) {
+                                        return Colors.grey;
+                                      } else {
+                                        return const Color.fromARGB(
+                                            255, 132, 206, 243);
+                                      }
+                                    },
+                                  ),
+                                ),
+                                child: const Text("확인"),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+                // 제목 정보가 비어있을 때
+                else if (_titleController.text.isEmpty) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0)),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Text(
+                              "제목을 입력해주세요",
+                            ),
+                          ],
+                        ),
+                        actions: <Widget>[
+                          SizedBox(
+                            width: 250,
+                            child: ElevatedButton(
+                              style: ButtonStyle(
+                                backgroundColor: MaterialStateColor.resolveWith(
+                                  (states) {
+                                    if (states
+                                        .contains(MaterialState.disabled)) {
+                                      return Colors.grey;
+                                    } else {
+                                      return Colors.blue;
+                                    }
+                                  },
+                                ),
+                              ),
+                              child: const Text("확인"),
+                              onPressed: () {
+                                Navigator.pop(context);
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+                // 평점 정보가 비어있을 때
+                else if (rate == null) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0)),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Text(
+                              "평점을 입력해주세요",
+                            ),
+                          ],
+                        ),
+                        actions: <Widget>[
+                          Center(
+                            child: SizedBox(
+                              width: 250,
+                              child: ElevatedButton(
+                                child: const Text("확인"),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+                // 내용 정보가 비어있을 때
+                else if (_contentsController.text.isEmpty) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0)),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Text(
+                              "내용을 입력해주세요",
+                            ),
+                          ],
+                        ),
+                        actions: <Widget>[
+                          Center(
+                            child: SizedBox(
+                              width: 250,
+                              child: ElevatedButton(
+                                child: const Text("확인"),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+                // 사진 정보가 비어있을 때
+                else if (_selectedFiles.isEmpty) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0)),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Text(
+                              "사진을 첨부해주세요",
+                            ),
+                          ],
+                        ),
+                        actions: <Widget>[
+                          Center(
+                            child: SizedBox(
+                              width: 250,
+                              child: ElevatedButton(
+                                child: const Text("확인"),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+                // 모든 정보가 입력되었을 때
+                else {
+                  // Display the loading dialog
+                  _fetchData(context);
+                  bool checkResult = await _sendDataToServer(
+                    title: _titleController.text,
+                    category: categoryCurrentLocation,
+                    contents: _contentsController.text,
+                    rate: rate,
+                  );
+                  if (checkResult == true) {
+                    try {
+                      // ignore: use_build_context_synchronously
+                      Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const Control()),
+                          (route) => false);
+                    } catch (e) {
+                      throw Exception(e);
+                    }
+                  } else {
+                    // ignore: use_build_context_synchronously
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          contentPadding:
+                              const EdgeInsets.fromLTRB(0, 20, 0, 5),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.0)),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: const [
+                              Text(
+                                "업로드를 실패했습니다.",
+                              ),
+                            ],
+                          ),
+                          actions: <Widget>[
+                            Center(
+                              child: SizedBox(
+                                width: 250,
+                                child: ElevatedButton(
+                                  child: const Text("확인"),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  }
+                }
               },
               child: const Text(
                 "완료",
@@ -586,6 +553,35 @@ class _WriteState extends State<Write> {
   Widget _makeTextArea() {
     return ListView.separated(
       itemBuilder: (BuildContext context, index) {
+        List<Widget> boxContents = [
+          IconButton(
+            onPressed: () {
+              _selectImages();
+            },
+            icon: Container(
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                  color: Colors.white, shape: BoxShape.circle),
+              child: Icon(
+                Icons.camera_alt_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+          Container(),
+          _selectedFiles.length <= 3
+              ? Container()
+              : FittedBox(
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle),
+                    child: Text(
+                      '+${(_selectedFiles.length - 3).toString()}',
+                    ),
+                  ),
+                ),
+        ];
         return Column(
           children: [
             // Category textfield
@@ -611,20 +607,24 @@ class _WriteState extends State<Write> {
                       itemBuilder: (BuildContext context) {
                         return [
                           const PopupMenuItem(
-                            value: "electronics",
-                            child: Text("디지털/전자"),
+                            value: "entertainment",
+                            child: Text("게임/오락"),
                           ),
                           const PopupMenuItem(
-                            value: "tools",
-                            child: Text("공구"),
+                            value: "electronic",
+                            child: Text("전자기기"),
                           ),
                           const PopupMenuItem(
                             value: "clothes",
                             child: Text("의류"),
                           ),
                           const PopupMenuItem(
-                            value: "others",
-                            child: Text("기타"),
+                            value: "health",
+                            child: Text("운동/건강"),
+                          ),
+                          const PopupMenuItem(
+                            value: "food",
+                            child: Text("음식"),
                           ),
                         ];
                       },
@@ -672,44 +672,6 @@ class _WriteState extends State<Write> {
                 ),
               ),
             ),
-            // rate textfield
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-              child: TextFormField(
-                controller: _rateController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  enabledBorder: UnderlineInputBorder(),
-                  isDense: true,
-                  contentPadding: EdgeInsets.fromLTRB(0, 10, 20, 20),
-                  hintText: "평점을 입력해주세요",
-                ),
-                textInputAction: TextInputAction.next,
-                onChanged: (value) {
-                  // 입력 값에서 ',' 제거
-                  String rate = value.replaceAll(',', '');
-                  // 빈 문자열인 경우 그대로 입력
-                  if (rate.isEmpty) {
-                    _rateController.value = TextEditingValue(
-                      text: '',
-                      selection: TextSelection.fromPosition(
-                        const TextPosition(offset: 0),
-                      ),
-                    );
-                    return;
-                  }
-                  // 1000단위로 ',' 추가
-                  rate = NumberFormat('#,###').format(int.parse(rate));
-                  // 변경된 값을 다시 입력
-                  _rateController.value = TextEditingValue(
-                    text: rate,
-                    selection: TextSelection.fromPosition(
-                      TextPosition(offset: rate.length),
-                    ),
-                  );
-                },
-              ),
-            ),
             // Contents textfield
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
@@ -725,30 +687,68 @@ class _WriteState extends State<Write> {
                 textInputAction: TextInputAction.done,
               ),
             ),
+            // rate textfield
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: RatingBar.builder(
+                    initialRating: 0,
+                    minRating: 0,
+                    direction: Axis.horizontal,
+                    allowHalfRating: false,
+                    itemCount: 5,
+                    itemSize: 40,
+                    itemPadding: const EdgeInsets.symmetric(horizontal: 1.0),
+                    itemBuilder: (context, _) => const Icon(
+                      Icons.star,
+                      color: Colors.amber,
+                    ),
+                    onRatingUpdate: (rating) {
+                      setState(() {
+                        rate = rating.toInt();
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
             // image viewer
-            SizedBox(
-              child: Wrap(
-                spacing: 8.0,
-                children: _selectedFiles
-                    .map((file) => Padding(
-                          padding: const EdgeInsets.all(2.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: const Color.fromARGB(255, 167, 167, 167),
-                              ),
-                            ),
-                            child: SizedBox(
-                              width: 100,
-                              height: 100,
-                              child: Image.file(
-                                File(file.path),
-                                fit: BoxFit.scaleDown,
-                              ),
-                            ),
-                          ),
-                        ))
-                    .toList(),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: SizedBox(
+                width: 300,
+                child: GridView.count(
+                  padding: const EdgeInsets.all(2),
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 5,
+                  childAspectRatio: 0.9,
+                  shrinkWrap: true,
+                  children: List.generate(
+                    3,
+                    (index) => DottedBorder(
+                      color: Colors.blue,
+                      dashPattern: const [5, 3],
+                      borderType: BorderType.RRect,
+                      radius: const Radius.circular(10),
+                      child: Container(
+                        decoration: index <= _selectedFiles.length - 1
+                            ? BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  fit: BoxFit.cover,
+                                  image: FileImage(
+                                    File(_selectedFiles[index].path),
+                                  ),
+                                ),
+                              )
+                            : null,
+                        child: Center(child: boxContents[index]),
+                      ),
+                    ),
+                  ).toList(),
+                ),
               ),
             ),
           ],
@@ -769,20 +769,6 @@ class _WriteState extends State<Write> {
     return Scaffold(
       appBar: _appbarWidget(),
       body: _makeTextArea(),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          _selectImages();
-        },
-        tooltip: 'Increment',
-        backgroundColor: const Color.fromARGB(255, 172, 227, 255),
-        label: const Text(
-          "이미지 추가",
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
     );
   }
 }
