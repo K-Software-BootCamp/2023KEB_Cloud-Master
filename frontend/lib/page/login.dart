@@ -104,19 +104,26 @@ class _LogInState extends State<LogIn> {
           //scrollDirection: Axis.vertical,
           children: [
             Flexible(
-              flex: 2,
+              flex: 3,
               child: Container(),
             ),
             Flexible(
-              flex: 5,
-              child: Container(
-                // ignore: sort_child_properties_last
-                child: const Center(
-                  child: Text("앱 이미지 스페이스"),
-                ),
-                decoration: const BoxDecoration(
-                  color: Colors.blueAccent,
-                ),
+              flex: 7,
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.all_inclusive,
+                    color: Colors.lightBlue,
+                    size: 200,
+                  ),
+                  Text(
+                    'Re View',
+                    style: TextStyle(
+                      fontSize: 40,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
               ),
               // Image.asset(
               //   "assets/images/appIcon.png",

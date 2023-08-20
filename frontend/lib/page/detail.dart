@@ -1,8 +1,7 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:comment_box/comment/comment.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:test_project/page/modifyBoard.dart';
 import '../repository/contents_repository.dart';
 import 'control.dart';
@@ -28,36 +27,25 @@ class _DetailContentViewState extends State<DetailContentView>
   late String username;
   int _currentPage = 0;
 
+  String? codeDialog;
+  String? valueText;
+
   late String currentLocation;
+  List<dynamic> commentData = [];
 
   final formKey = GlobalKey<FormState>();
   final TextEditingController commentController = TextEditingController();
-
-  //앱 내에서 좌측 상단바 출력을 위한 데이터
-  final Map<String, String> optionsTypeToString = {
-    "setting": "PIN 설정",
-    "auth": "PIN 해제",
-  };
-  final Map<String, dynamic> cabinetNumberToString = {
-    "default": "캐비넷 번호",
-    "1": "1번 캐비넷",
-    "2": "2번 캐비넷",
-  };
+  final TextEditingController modifycommentController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _getCommentDataToServer();
     _animationController = AnimationController(vsync: this);
     _colorTween = ColorTween(begin: Colors.white, end: Colors.black)
         .animate(_animationController);
     imgList = widget.data["imageList"];
     _currentPage = 0;
-  }
-
-  Future<String?> getUserId() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    username = prefs.getString('userId')!;
-    return prefs.getString('userId');
   }
 
   @override
@@ -74,6 +62,7 @@ class _DetailContentViewState extends State<DetailContentView>
   }
 
   late int statusCode;
+  // 게시글 수정/삭제 데이터 Post 함수
   Future _sendDataToServer({
     required int boardId,
     required String userId,
@@ -102,6 +91,147 @@ class _DetailContentViewState extends State<DetailContentView>
           UserInfo.userId = userId;
         });
       }
+      print(response.statusCode);
+      print(responseBody);
+      return int.parse(responseBody["statusCode"].toString());
+    } else {
+      setState(() {
+        statusCode = response.statusCode;
+      });
+      return int.parse(responseBody["statusCode"].toString());
+    }
+  }
+
+  // 댓글 리스트를 불러오는 함수
+  Future _getCommentDataToServer() async {
+    final uri = Uri.parse(
+        'https://hu7ixbp145.execute-api.ap-northeast-2.amazonaws.com/SendImage-test/comments');
+
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+
+    final body = jsonEncode({
+      'Method': 'GetCommentData',
+      'boardId': widget.data['boardId'],
+    });
+
+    final response = await http
+        .post(uri, headers: headers, body: body)
+        .timeout(const Duration(seconds: 5));
+
+    final responseBody = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      if (responseBody.containsKey('body')) {
+        final bodyData = jsonDecode(responseBody['body']);
+        if (bodyData is List<dynamic>) {
+          setState(() {
+            commentData = bodyData; // commentData 초기화
+          });
+        }
+      }
+      print(responseBody);
+      print(commentData);
+      return; // Future<void> 함수이므로 반환값이 필요하지 않습니다.
+    } else {
+      setState(() {
+        statusCode = response.statusCode;
+      });
+      return;
+    }
+  }
+
+  // 댓글 작성 데이터 post하는 함수
+  Future _sendCommentDataToServer() async {
+    final uri = Uri.parse(
+        'https://hu7ixbp145.execute-api.ap-northeast-2.amazonaws.com/SendImage-test/comments');
+
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+
+    final body = jsonEncode({
+      'Method': 'SaveCommentData',
+      'boardId': widget.data['boardId'],
+      'userId': UserInfo.userId,
+      'commentContent': commentController.text,
+    });
+
+    final response = await http
+        .post(uri, headers: headers, body: body)
+        .timeout(const Duration(seconds: 5));
+
+    final responseBody = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      if (responseBody["statusCode"] == 200) {}
+      print(response.statusCode);
+      print(responseBody);
+      return int.parse(responseBody["statusCode"].toString());
+    } else {
+      setState(() {
+        statusCode = response.statusCode;
+      });
+      return int.parse(responseBody["statusCode"].toString());
+    }
+  }
+
+  Future _modifyCommentDataToServer(
+      {required int commentId, required String commentContent}) async {
+    final uri = Uri.parse(
+        'https://hu7ixbp145.execute-api.ap-northeast-2.amazonaws.com/SendImage-test/comments');
+
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+
+    final body = jsonEncode({
+      'Method': 'modifyCommentData',
+      'commentId': commentId,
+      'boardId': widget.data['boardId'],
+      'userId': UserInfo.userId,
+      'commentContent': modifycommentController.text,
+    });
+
+    final response = await http
+        .post(uri, headers: headers, body: body)
+        .timeout(const Duration(seconds: 5));
+
+    final responseBody = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      if (responseBody["statusCode"] == 200) {}
+      print(response.statusCode);
+      print(responseBody);
+      return int.parse(responseBody["statusCode"].toString());
+    } else {
+      setState(() {
+        statusCode = response.statusCode;
+      });
+      return int.parse(responseBody["statusCode"].toString());
+    }
+  }
+
+  Future _deleteCommentDataToServer(int commentId) async {
+    final uri = Uri.parse(
+        'https://hu7ixbp145.execute-api.ap-northeast-2.amazonaws.com/SendImage-test/comments');
+
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+
+    final body = jsonEncode({
+      'Method': 'deleteCommentData',
+      'commentId': commentId,
+      'boardId': widget.data['boardId'],
+      'userId': UserInfo.userId,
+    });
+
+    final response = await http
+        .post(uri, headers: headers, body: body)
+        .timeout(const Duration(seconds: 5));
+
+    final responseBody = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      if (responseBody["statusCode"] == 200) {}
       print(response.statusCode);
       print(responseBody);
       return int.parse(responseBody["statusCode"].toString());
@@ -150,7 +280,7 @@ class _DetailContentViewState extends State<DetailContentView>
         onPressed: () => Navigator.pop(context),
         icon: _makeIcon(Icons.arrow_back),
       ),
-      backgroundColor: Colors.white.withAlpha(locationAlpha.toInt()),
+      backgroundColor: Colors.white, //.withAlpha(locationAlpha.toInt()),
       elevation: 0,
       actions: [
         GestureDetector(
@@ -174,7 +304,7 @@ class _DetailContentViewState extends State<DetailContentView>
                   showDialog<String>(
                       context: context,
                       builder: (BuildContext context) => AlertDialog(
-                            title: const Text(''),
+                            title: const Text('게시글 수정'),
                             content: const Text('게시글을 수정하시겠습니까?'),
                             actions: <Widget>[
                               TextButton(
@@ -238,7 +368,7 @@ class _DetailContentViewState extends State<DetailContentView>
                   showDialog<String>(
                       context: context,
                       builder: (BuildContext context) => AlertDialog(
-                            title: const Text(''),
+                            title: const Text('게시글 삭제'),
                             content: const Text('게시글을 삭제하시겠습니까?'),
                             actions: <Widget>[
                               TextButton(
@@ -548,38 +678,275 @@ class _DetailContentViewState extends State<DetailContentView>
     );
   }
 
+  Widget _commentList() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(15, 15, 0, 0),
+          child: Text(
+            '댓글', // 댓글 부분 제목을 추가하거나 변경할 수 있습니다.
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+        ),
+        commentChild(commentData), // Existing commentChild function
+      ],
+    );
+  }
+
   Widget commentChild(data) {
-    return ListView(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < data.length; i++)
           Padding(
-            padding: const EdgeInsets.fromLTRB(2.0, 8.0, 2.0, 0.0),
-            child: ListTile(
-              leading: GestureDetector(
-                onTap: () async {
-                  // Display the image in large form.
-                  print("Comment Clicked");
-                },
-                child: Container(
-                  height: 50.0,
-                  width: 50.0,
-                  decoration: const BoxDecoration(
-                      color: Colors.blue,
-                      borderRadius: BorderRadius.all(Radius.circular(50))),
-                  child: CircleAvatar(
-                      radius: 50,
-                      backgroundImage: CommentBox.commentImageParser(
-                        imageURLorPath: ("assets/svg/user.png"),
-                      )),
+            padding: const EdgeInsets.fromLTRB(2.0, 8.0, 0.0, 0.0),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: GestureDetector(
+                    onTap: () async {
+                      // Display the image in large form.
+                      print("Comment Clicked");
+                    },
+                    child: Container(
+                      height: 30.0,
+                      width: 30.0,
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        borderRadius: BorderRadius.all(Radius.circular(50)),
+                      ),
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundImage: CommentBox.commentImageParser(
+                          imageURLorPath: ("assets/svg/user.png"),
+                        ),
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    data[i]['userId'],
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(data[i]['commentContent']),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          if (UserInfo.userId == data[i]['userId']) {
+                            showDialog<String>(
+                                context: context,
+                                builder: (BuildContext context) => AlertDialog(
+                                      title: const Text('댓글 수정'),
+                                      content: const Text('댓글을 수정하시겠습니까?'),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                            showDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  return AlertDialog(
+                                                    title: const Text('댓글 수정'),
+                                                    content: TextField(
+                                                      onChanged: (value) {
+                                                        setState(() {
+                                                          valueText = value;
+                                                        });
+                                                      },
+                                                      controller:
+                                                          modifycommentController,
+                                                      decoration:
+                                                          const InputDecoration(
+                                                              hintText:
+                                                                  "수정 할 내용을 입력해주세요"),
+                                                    ),
+                                                    actions: <Widget>[
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          _fetchData(context);
+                                                          print(
+                                                              modifycommentController
+                                                                  .text);
+                                                          _modifyCommentDataToServer(
+                                                            commentId: data[i][
+                                                                    'commentId']
+                                                                .toInt(),
+                                                            commentContent:
+                                                                modifycommentController
+                                                                    .text,
+                                                          );
+                                                          Navigator.pop(
+                                                              context);
+                                                          _getCommentDataToServer();
+                                                          modifycommentController
+                                                              .clear();
+                                                        },
+                                                        child: const Text('예'),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                                context,
+                                                                'Cancel'),
+                                                        child:
+                                                            const Text('아니오'),
+                                                      ),
+                                                    ],
+                                                  );
+                                                });
+                                          },
+                                          child: const Text('예'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, 'Cancel'),
+                                          child: const Text('아니오'),
+                                        ),
+                                      ],
+                                    ));
+                          } else if (UserInfo.userId != data[i]['userId']) {
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  contentPadding:
+                                      const EdgeInsets.fromLTRB(0, 20, 0, 5),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10.0)),
+                                  content: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: const [
+                                      Text(
+                                        "댓글 작성자가 아닙니다.",
+                                      ),
+                                    ],
+                                  ),
+                                  actions: <Widget>[
+                                    Center(
+                                      child: SizedBox(
+                                        width: 250,
+                                        child: ElevatedButton(
+                                          child: const Text("확인"),
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
+                          // Handle edit button click
+                          print("수정");
+                        },
+                        child: Text(
+                          "수정",
+                          style: TextStyle(
+                            fontSize: 12,
+                          ),
+                        ),
+                        // Icon(Icons.edit, size: 15),
+                      ),
+                      SizedBox(width: 20),
+                      GestureDetector(
+                        onTap: () {
+                          if (UserInfo.userId == data[i]['userId']) {
+                            showDialog<String>(
+                                context: context,
+                                builder: (BuildContext context) => AlertDialog(
+                                      title: const Text('댓글 삭제'),
+                                      content: const Text('댓글을 삭제하시겠습니까?'),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          onPressed: () async {
+                                            _fetchData(context);
+                                            await _deleteCommentDataToServer(
+                                              data[i]['commentId'].toInt(),
+                                            );
+                                            Navigator.pop(context);
+                                            _getCommentDataToServer();
+                                          },
+                                          child: const Text('예'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, 'Cancel'),
+                                          child: const Text('아니오'),
+                                        ),
+                                      ],
+                                    ));
+                          } else if (UserInfo.userId != data[i]['userId']) {
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  contentPadding:
+                                      const EdgeInsets.fromLTRB(0, 20, 0, 5),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10.0)),
+                                  content: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: const [
+                                      Text(
+                                        "댓글 작성자가 아닙니다.",
+                                      ),
+                                    ],
+                                  ),
+                                  actions: <Widget>[
+                                    Center(
+                                      child: SizedBox(
+                                        width: 250,
+                                        child: ElevatedButton(
+                                          child: const Text("확인"),
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
+                          // Handle delete button click
+                          print("삭제");
+                        },
+                        child: Text(
+                          "삭제",
+                          style: TextStyle(
+                            fontSize: 12,
+                          ),
+                        ),
+                        // Icon(Icons.delete, size: 15),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              title: Text(
-                data[i]['name'],
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(data[i]['message']),
+                Container(
+                  height: 1,
+                  margin: const EdgeInsets.symmetric(horizontal: 15),
+                  color: Colors.grey.withOpacity(0.3),
+                ),
+              ],
             ),
-          )
+          ),
       ],
     );
   }
@@ -596,6 +963,10 @@ class _DetailContentViewState extends State<DetailContentView>
               _line(),
               _contentDetail(),
               _line(),
+              _commentList(),
+              // SizedBox(
+              //   height: 200,
+              // ),
               //_otherCellContents(),
             ],
           ),
@@ -609,38 +980,44 @@ class _DetailContentViewState extends State<DetailContentView>
       width: MediaQuery.of(context).size.width,
       padding: const EdgeInsets.symmetric(horizontal: 15),
       height: 60,
-      child: Row(
-        children: [
-          Container(
-            margin: const EdgeInsets.only(left: 10, right: 10),
-            height: 40,
-            width: 1,
-            color: Colors.grey.withOpacity(0.3),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextFormField(
-                controller: commentController,
-                decoration: InputDecoration(
-                  hintText: '댓글을 작성해주세요.',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
+      child: Builder(builder: (context) {
+        return Row(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(left: 10, right: 10),
+              height: 40,
+              width: 1,
+              color: Colors.grey.withOpacity(0.3),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextFormField(
+                  controller: commentController,
+                  decoration: InputDecoration(
+                    hintText: '댓글을 작성해주세요.',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(25.0),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10.0), // Adjust this value
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 10.0), // Adjust this value
                 ),
               ),
             ),
-          ),
-          IconButton(
-            onPressed: () {
-              print(widget.data['boardId']);
-            },
-            icon: const Icon(Icons.send),
-          ),
-        ],
-      ),
+            Builder(builder: (context) {
+              return IconButton(
+                onPressed: () async {
+                  await _sendCommentDataToServer();
+                  _getCommentDataToServer();
+                  // Close the loading dialog
+                },
+                icon: const Icon(Icons.send),
+              );
+            }),
+          ],
+        );
+      }),
     );
   }
 
@@ -651,9 +1028,17 @@ class _DetailContentViewState extends State<DetailContentView>
     );
     return Scaffold(
       key: scaffoldKey,
-      extendBodyBehindAppBar: true,
+      // extendBodyBehindAppBar: true,
       appBar: _appbarWidget(),
-      body: _bodyWidget(),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          setState(() {
+            _getCommentDataToServer();
+            _bodyWidget();
+          });
+        },
+        child: _bodyWidget(),
+      ),
       bottomNavigationBar: _bottomBarWidget(),
       resizeToAvoidBottomInset: false,
     );

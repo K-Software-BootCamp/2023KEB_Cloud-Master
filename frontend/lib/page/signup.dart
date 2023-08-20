@@ -19,6 +19,35 @@ class _SignUpState extends State<SignUp> {
   final TextEditingController _confirmPWController = TextEditingController();
 
   //final _formKey = GrobalKey<FormState>();
+  void _fetchData(BuildContext context) async {
+    // Show the loading dialog
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (_) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                CircularProgressIndicator(),
+                SizedBox(height: 15),
+                Text('Loading...'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // Simulate asynchronous delay
+    await Future.delayed(const Duration(seconds: 3));
+
+    // Close the loading dialog
+    Navigator.of(context).pop();
+  }
 
   Widget makeStringInput({
     //required String text,
@@ -500,6 +529,7 @@ class _SignUpState extends State<SignUp> {
                           } else {
                             // 모든 필드가 입력되었고 비밀번호가 일치하는 경우
                             late var success;
+                            _fetchData(context);
                             success = await _sendSignUpDataToServer(
                               userId: _userIDController.text,
                               userPw: _confirmPWController.text,

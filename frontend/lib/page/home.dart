@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:intl/intl.dart';
-import 'package:test_project/repository/contents_repository.dart';
 
+import '../repository/contents_repository.dart';
 import 'detail.dart';
 
 class Home extends StatefulWidget {
   Home({super.key});
-  final oCcy = NumberFormat(
-    "#,###",
-    "ko_KR",
-  );
-  String calcStringToWon(String priceString) {
-    return "${oCcy.format(int.parse(priceString))}원";
-  }
 
   @override
   State<Home> createState() => _HomeState();
@@ -21,6 +14,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   late String currentLocation;
+  late TextEditingController _searchController;
 
   //앱 내에서 좌측 상단바 출력을 위한 데이터
   final Map<String, String> optionsTypeToString = {
@@ -39,6 +33,7 @@ class _HomeState extends State<Home> {
     super.initState();
     currentLocation = "all";
     isLoading = false;
+    _searchController = TextEditingController();
   }
 
   PreferredSizeWidget _appbarWidget() {
@@ -102,6 +97,12 @@ class _HomeState extends State<Home> {
       ),
       backgroundColor: const Color.fromARGB(255, 192, 234, 255),
       elevation: 1.5,
+      actions: [
+        IconButton(
+          onPressed: () {},
+          icon: const Icon(Icons.search),
+        ),
+      ],
     );
   }
 
@@ -110,13 +111,10 @@ class _HomeState extends State<Home> {
     super.didChangeDependencies();
   }
 
-  // 원화 계산 라이브러리 & 원화 계산 함수
-  final oCcy = NumberFormat(
-    "#,###",
-    "ko_KR",
-  );
-  String calcStringToWon(String priceString) {
-    return "${oCcy.format(int.parse(priceString))}원";
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   // currentLocation으로 판매, 구매, 대여 페이지 선택
@@ -165,7 +163,7 @@ class _HomeState extends State<Home> {
                     errorBuilder: (BuildContext context, Object exception,
                         StackTrace? stackTrace) {
                       return Image.asset(
-                        "assets/svg/No_image.jpg",
+                        "frontend\assets\svg\No_image.jpg",
                         width: 100,
                         height: 100,
                       );
@@ -281,6 +279,8 @@ class _HomeState extends State<Home> {
             return const Center(child: Text("데이터를 불러올 수 없습니다."));
           }
           if (snapshot.hasData) {
+            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+            print(snapshot.data);
             return _makeDataList(snapshot.data);
           }
           return const Center(child: Text("해당 거래방식에 대한 데이터가 없습니다."));

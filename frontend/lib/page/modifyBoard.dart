@@ -725,42 +725,42 @@ class _ModifyBoardState extends State<ModifyBoard> {
               ],
             ),
             // image viewer
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: SizedBox(
-                width: 300,
-                child: GridView.count(
-                  padding: const EdgeInsets.all(2),
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 5,
-                  childAspectRatio: 0.9,
-                  shrinkWrap: true,
-                  children: List.generate(
-                    3,
-                    (index) => DottedBorder(
-                      color: Colors.blue,
-                      dashPattern: const [5, 3],
-                      borderType: BorderType.RRect,
-                      radius: const Radius.circular(10),
-                      child: Container(
-                        decoration: index <= _selectedFiles.length - 1
-                            ? BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                image: DecorationImage(
-                                  fit: BoxFit.cover,
-                                  image: FileImage(
-                                    File(_selectedFiles[index].path),
-                                  ),
-                                ),
-                              )
-                            : null,
-                        child: Center(child: boxContents[index]),
-                      ),
-                    ),
-                  ).toList(),
-                ),
-              ),
-            ),
+            // Padding(
+            //   padding: const EdgeInsets.all(20.0),
+            //   child: SizedBox(
+            //     width: 300,
+            //     child: GridView.count(
+            //       padding: const EdgeInsets.all(2),
+            //       crossAxisCount: 3,
+            //       crossAxisSpacing: 5,
+            //       childAspectRatio: 0.9,
+            //       shrinkWrap: true,
+            //       children: List.generate(
+            //         3,
+            //         (index) => DottedBorder(
+            //           color: Colors.blue,
+            //           dashPattern: const [5, 3],
+            //           borderType: BorderType.RRect,
+            //           radius: const Radius.circular(10),
+            //           child: Container(
+            //             decoration: index <= _selectedFiles.length - 1
+            //                 ? BoxDecoration(
+            //                     borderRadius: BorderRadius.circular(8),
+            //                     image: DecorationImage(
+            //                       fit: BoxFit.cover,
+            //                       image: FileImage(
+            //                         File(_selectedFiles[index].path),
+            //                       ),
+            //                     ),
+            //                   )
+            //                 : null,
+            //             child: Center(child: boxContents[index]),
+            //           ),
+            //         ),
+            //       ).toList(),
+            //     ),
+            //   ),
+            // ),
           ],
         );
       },

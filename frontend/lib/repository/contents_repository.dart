@@ -44,7 +44,6 @@ class ContentsRepository {
           .timeout(const Duration(seconds: 5));
 
       final responseBody = response.body;
-      print("Response body: $responseBody");
 
       if (response.statusCode == 200) {
         final parsedBody = jsonDecode(responseBody);
