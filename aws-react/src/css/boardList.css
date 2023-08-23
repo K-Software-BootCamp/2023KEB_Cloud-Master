@@ -1,0 +1,8 @@
+.star {
+  font-size: 24px;
+  color: gold;
+}
+
+.selected.star {
+  color: orange;
+}
