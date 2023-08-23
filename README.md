@@ -36,3 +36,6 @@ AWS를 사용해 서버리스 리뷰 애플리케이션 제작
 
 #### <a href="https://github.com/project-serverless/Annotation_Team4/assets/121424132/031da47f-15f7-41e8-a92b-997c1d5657de">게시글 작성 화면</a>
 - 제목, 이미지, 카테고리, 내용, 별점 입력
+
+### Acknowledgement
+"본 연구는 과학기술정보통신부 및 정보통신기획평가원의 SW전문인재양성사업의 연구결과로 수행되었음"(2022-0-01127)"
